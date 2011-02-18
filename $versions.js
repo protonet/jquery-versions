@@ -13,8 +13,11 @@
  */
 var $versions = (function() {
   
-  var PROTOCOL     = location.protocol == "https:" ? location.protocol : "http:",
-      URL_TEMPLATE = PROTOCOL + "//ajax.googleapis.com/ajax/libs/jquery/{version}/jquery.min.js?" + new Date().getTime();
+  var // location.protocol can be file:, that why we either take http: or https:
+      protocol     = location.protocol == "https:" ? location.protocol : "http:",
+      // cache buster needed to bypass browser cache when loading most recent branch version
+      cacheBuster  = new Date().getTime(),
+      URL_TEMPLATE = protocol + "//ajax.googleapis.com/ajax/libs/jquery/{version}/jquery.min.js?" + cacheBuster;
   
   var _makeArray = function(pseudoArray) {
     var array = [];
@@ -32,23 +35,26 @@ var $versions = (function() {
     return Object.prototype.toString.call(array) === "[object Array]";
   };
   
-  
   var _loadScript = function(url, callback) {
-    var script          = document.createElement("script"),
-        callbackWrapper = function() {
-          script.onload = script.onreadystatechange = null;
-          callback();
-          script.parentNode.removeChild(script);
-          script = null;
-        };
-    
+    var script = document.createElement("script"),
+        existingScript;
     script.async = true;
     script.src = url;
-    script.onload = callbackWrapper;
-    script.onreadystatechange = function() {
-      if (/complete|loaded/.test(script.readyState)) { callbackWrapper(); }
+    script.onload = function() {
+      callback();
+      script.onload = script.onreadystatechange = null;
+      script.parentNode.removeChild(script);
+      script = null;
     };
-    document.body.appendChild(script);
+    script.onerror = function() {
+      throw new Error("$versions: File '" + url + "' couldn't be loaded!");
+    };
+    script.onreadystatechange = function() {
+      if (/complete|loaded/.test(script.readyState)) { script.onload(); }
+    };
+    
+    existingScript = document.getElementsByTagName("script")[0];
+    existingScript.parentNode.insertBefore(script, existingScript);
   };
   
   var _loadScripts = function(urls, callback) {
@@ -70,8 +76,8 @@ var $versions = (function() {
   
   
   var VersionRunner = function(versions) {
-    this.scripts          = [];
     this.versions         = versions;
+    this.scripts          = [];
     this.callbackMethods  = [];
     return this;
   };
@@ -91,20 +97,23 @@ var $versions = (function() {
     var versions        = _cloneArray(this.versions),
         that            = this,
         loadNextJquery  = function() {
-          if (!versions.length) {
+          if (versions.length) {
+            _loadJquery(versions.shift(), function() {
+              _loadScripts(that.scripts, function() {
+                var currentJquery  = window.jQuery,
+                    version        = currentJquery.fn.jquery;
+                testExecuter(currentJquery, currentJquery, version);
+                
+                // Clean up afterwards
+                currentJquery.noConflict(true);
+                loadNextJquery();
+              });
+            });
+          } else {
             for (var i=0; i<that.callbackMethods.length; i++) {
               that.callbackMethods[i]();
             }
           }
-          
-          _loadJquery(versions.shift(), function() {
-            _loadScripts(that.scripts, function() {
-              var currentJquery  = window.jQuery.noConflict(true),
-                  version        = currentJquery.fn.jquery;
-              testExecuter(currentJquery, currentJquery, version);
-              loadNextJquery();
-            });
-          });
         };
     
     loadNextJquery();

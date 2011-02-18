@@ -1,0 +1,21 @@
+h1. $versions
+
+Elegant way to test a plugin in multiple versions of jQuery.
+Works perfectly with QUnit (and probably other testing frameworks).
+
+h2. Example
+
+This will test _myPlugin.js_ in version 1.4.3, 1.4.4 and the most recent 1.5.* version.
+
+bc.. $versions("1.4.3", "1.4.4", "1.5").load("myCoolPlugin.js").execute(function($, jQuery, version) {
+  // Assuming you are using QUnit:
+  module("myCoolPlugin in jQuery version " + version);
+  
+  test("Check return values", function() {
+    equals($("<div>").myCoolPlugin(), "foo");
+  })
+});
+  
+h2. Which versions are supported?
+
+See "http://code.google.com/apis/libraries/devguide.html#jquery":http://code.google.com/apis/libraries/devguide.html#jquery (and click on "view older versions").

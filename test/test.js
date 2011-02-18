@@ -19,7 +19,7 @@ test("Test order of versions", function() {
   stop(10000);
   expect(3);
   
-  var versionsToLoad = ["1.4.3", "1.4.4", "1.4.2"];
+  var versionsToLoad = ["1.3.1", "1.4.4", "1.2.3"];
   
   $versions(versionsToLoad).load("dummy_plugin.js").execute(function($, jQuery, version) {
     equals(version, versionsToLoad.shift());
@@ -44,11 +44,12 @@ test("Test omitting of loading a plugin", function() {
 
 test("Test global namespace #1", function() {
   stop(10000);
-  expect(4);
+  expect(6);
   
-  $versions("1.4", "1.5").load("dummy_plugin.js").execute(function($, jQuery, version) {
-    ok(!window.jQuery, "'jQuery' variable doesn't exist in global namespace");
-    ok(!window.$, "'$' variable doesn't exist in global namespace");
+  $versions("1.2", "1.5").load("dummy_plugin.js").execute(function($, jQuery, version) {
+    ok(window.jQuery.fn.dummyPlugin, "dummyPlugin exists on jQuery object in global namespace");
+    ok(window.jQuery, "'jQuery' variable exists in global namespace");
+    ok(window.$, "'$' variable exists in global namespace");
   }).callback(function() {
     start();
   });
@@ -56,20 +57,23 @@ test("Test global namespace #1", function() {
 
 test("Test global namespace #2", function() {
   stop(10000);
-  expect(6);
+  expect(4);
   
-  var notJquery = window.$ = window.jQuery = "I'm not jQuery!",
-      undef;
+  var orig$       = window.$,
+      origJquery  = window.jQuery,
+      notJquery   = window.$ = window.jQuery = "I'm not jQuery!";
   
   $versions("1.5.0").execute(function($, jQuery, version) {
-    equals(window.$, notJquery);
-    equals(window.jQuery, notJquery);
-    ok($ != window.$);
-    ok(jQuery != window.jQuery);
+    equals(window.$, $);
+    equals(window.jQuery, jQuery);
   }).callback(function() {
     equals(window.$, notJquery);
     equals(window.jQuery, notJquery);
-    window.$ = window.jQuery = undef;
+    
+    // Restore $ and jQuery
+    window.$ = orig$;
+    window.jQuery = origJquery;
+    
     start();
   });
 });
